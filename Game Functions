@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Card Pack Opening Game</title>
+<style>
+  body {
+    background: #121212;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 {
+    margin-bottom: 20px;
+  }
+  button {
+    background: #333;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 18px;
+    padding: 12px 24px;
+    margin: 10px 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background: #555;
+  }
+  .pack-btn {
+    position: relative;
+  }
+  .info-icon {
+    display: inline-block;
+    margin-left: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    background: #555;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    font-size: 14px;
+  }
+  #currencyDisplay {
+    font-size: 22px;
+    margin-bottom: 15px;
+  }
+  .cards {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 20px;
+  }
+  .card {
+    background: #1e1e1e;
+    border-radius: 10px;
+    width: 280px;
+    height: 175px;
+    position: relative;
+    border: 2px solid #fff;
+    overflow: hidden;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 8px;
+  }
+  .card img {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0.85;
+    border-radius: 10px;
+    z-index: 1;
+  }
+  .rarity-label {
+    position: relative;
+    z-index: 2;
+    background: rgba(0,0,0,0.7);
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    font-size: 14px;
+    width: fit-content;
+    margin-bottom: 4px;
+  }
+  .card-name {
+    position: relative;
+    z-index: 2;
+    font-weight: bold;
+    text-shadow: 0 0 4px black;
+  }
+  .sell-btn {
+    margin-top: 8px;
+    background: #c0392b;
+    color: white;
+    font-size: 14px;
+    padding: 6px 10px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .sell-btn:hover {
+    background: #e74c3c;
+  }
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  }
+  .modal-content {
+    background: #222;
+    padding: 20px;
+    border-radius: 12px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: white;
+    position: relative;
+  }
+  .close-btn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 28px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  #achievementList {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 10px;
+    text-align: left;
+  }
+  .achievement-item {
+    margin-bottom: 6px;
+    padding: 6px 8px;
+    background: #333;
+    border-radius: 5px;
+  }
+  .achievement-item.unlocked {
+    background: #27ae60;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<h1>Card Pack Opening Game</h1>
+
+<div id="currencyDisplay">Coins: 0</div>
+
+<div>
+  <button class="pack-btn" id="bronzePackBtn">Open Bronze Pack (1000 coins)
+    <span class="info-icon" data-pack="bronze" title="Show odds">i</span>
+  </button>
+  <button class="pack-btn" id="silverPackBtn">Open Silver Pack (5000 coins)
+    <span class="info-icon" data-pack="silver" title="Show odds">i</span>
+  </button>
+  <button class="pack-btn" id="goldPackBtn">Open Gold Pack (40000 coins)
+    <span class="info-icon" data-pack="gold" title="Show odds">i</span>
+  </button>
+</div>
+
+<button id="openCollectionBtn">View My Collection</button>
+
+<div class="cards" id="cardArea"></div>
+
+<!-- Collection Modal -->
+<div class="modal" id="collectionModal">
+  <div class="modal-content">
+    <span class="close-btn" id="closeCollectionBtn">&times;</span>
+    <h2>My Collection</h2>
+    <div class="cards" id="collectionArea"></div>
+    <h3>Achievements</h3>
+    <div id="achievementList"></div>
+  </div>
+</div>
+
+<!-- Odds Modal -->
+<div class="modal" id="oddsModal">
+  <div class="modal-content">
+    <span class="close-btn" id="closeOddsBtn">&times;</span>
+    <h2 id="oddsTitle"></h2>
+    <pre id="oddsContent" style="white-space: pre-wrap; font-family: monospace;"></pre>
+  </div>
+</div>
+
+<script>
+// ========== DATA ==========
+
+// Cards by rarity
+const cardsByRarity = {
+  common: [
+    { name: "Nissan Skyline 1500 Van (1968)", image: "https://i.imgur.com/GG6bGhS.jpg" },
+    { name: "Chevrolet EN-V 2.0", image: "https://i.imgur.com/V6EGtx3.jpg" }
+  ],
+  uncommon: [
+    { name: "Toyota AE86", image: "https://i.imgur.com/3V2A4OA.jpg" },
+    { name: "Mazda RX-7 FD", image: "https://i.imgur.com/RwTIhqI.jpg" }
+  ],
+  rare: [
+    { name: "Nissan GT-R R32", image: "https://i.imgur.com/btSeX7u.jpg" },
+    { name: "Subaru Impreza WRX STI", image: "https://i.imgur.com/0uup79q.jpg" }
+  ],
+  "super rare": [
+    { name: "Lamborghini Huracán", image: "https://i.imgur.com/fiE7O9G.jpg" },
+    { name: "Ferrari F8 Tributo", image: "https://i.imgur.com/nIp0FQf.jpg" }
+  ],
+  "ultra rare": [
+    { name: "McLaren P1", image: "https://i.imgur.com/Nqu4Cwh.jpg" }
+  ],
+  epic: [
+    { name: "Bugatti Veyron", image: "https://i.imgur.com/xQkUqlL.jpg" }
+  ],
+  legendary: [
+    { name: "Koenigsegg Agera RS", image: "https://i.imgur.com/WLhSwRL.jpg" }
+  ]
+};
+
+// Sell values for rarities
+const sellValues = {
+  common: 250,
+  uncommon: 500,
+  rare: 1000,
+  "super rare": 2500
+};
+
+// Achievements list
+const achievements = [
+  { id: 1, name: "Open a bronze pack", condition: s => s.packsOpened.bronze >= 1 },
+  { id: 2, name: "Open 3 bronze packs", condition: s => s.packsOpened.bronze >= 3 },
+  { id: 3, name: "Open a silver pack", condition: s => s.packsOpened.silver >= 1 },
+  { id: 4, name: "Collect 1 car", condition: s => s.cardsCollected >= 1 },
+  { id: 5, name: "Collect 5 cars", condition: s => s.cardsCollected >= 5 },
+  { id: 6, name: "Collect 10 cars", condition: s => s.cardsCollected >= 10 },
+  { id: 7, name: "Open 10 packs", condition: s => s.packsOpened.total >= 10 },
+  { id: 8, name: "Collect 3 commons", condition: s => (s.cardsByRarity.common || 0) >= 3 },
+  { id: 9, name: "Collect 3 uncommons", condition: s => (s.cardsByRarity.uncommon || 0) >= 3 },
+  { id: 10, name: "Collect 3 rares", condition: s => (s.cardsByRarity.rare || 0) >= 3 },
+  { id: 11, name: "Collect 3 super rares", condition: s => (s.cardsByRarity["super rare"] || 0) >= 3 },
+  { id: 12, name: "Collect 3 ultra rares", condition: s => (s.cardsByRarity["ultra rare"] || 0) >= 3 },
+  { id: 13, name: "Collect 3 epics", condition: s => (s.cardsByRarity.epic || 0) >= 3 },
+  { id: 14, name: "Collect 1 legendary", condition: s => (s.cardsByRarity.legendary || 0) >= 1 },
+  { id: 15, name: "Open a gold pack", condition: s => s.packsOpened.gold >= 1 },
+  { id: 16, name: "Open 100 packs", condition: s => s.packsOpened.total >= 100 },
+  { id: 17, name: "Collect 50 cars", condition: s => s.cardsCollected >= 50 },
+  { id: 18, name: "Collect 10 commons", condition: s => (s.cardsByRarity.common || 0) >= 10 },
+  { id: 19, name: "Collect 20 uncommons", condition: s => (s.cardsByRarity.uncommon || 0) >= 20 },
+  { id: 20, name: "Collect 30 rares", condition: s => (s.cardsByRarity.rare || 0) >= 30 }
+];
+
+// Coin card rewards with odds
+const coinCards = [
+  { coins: 100, chance: 0.20 },
+  { coins: 250, chance: 0.20 },
+  { coins: 500, chance: 0.50 },
+  { coins: 1000, chance: 0.07 },
+  { coins: 2000, chance: 0.025 },
+  { coins: 5000, chance: 0.004 },
+  { coins: 40000, chance: 0.001 }
+];
+
+// Packs with prices and rarities odds
+const packs = {
+  bronze: {
+    price: 1000,
+    rarities: [
+      { name: "common", chance: 0.5 },
+      { name: "uncommon", chance: 0.3 },
+      { name: "rare", chance: 0.125 },
+      { name: "ultra rare", chance: 0.065 },
+      { name: "epic", chance: 0.01 }
+    ]
+  },
+  silver: {
+    price: 5000,
+    rarities: [
+      { name: "common", chance: 0.4 },
+      { name: "uncommon", chance: 0.25 },
+      { name: "rare", chance: 0.175 },
+      { name: "super rare", chance: 0.1 },
+      { name: "ultra rare", chance: 0.05 },
+      { name: "epic", chance: 0.02 },
+      { name: "legendary", chance: 0.001 }
+    ]
+  },
+  gold: {
+    price: 40000,
+    rarities: [
+      { name: "common", chance: 0.3 },
+      { name: "uncommon", chance: 0.3 },
+      { name: "rare", chance: 0.15 },
+      { name: "super rare", chance: 0.125 },
+      { name: "ultra rare", chance: 0.075 },
+      { name: "epic", chance: 0.04 },
+      { name: "legendary", chance: 0.01 }
+    ]
+  }
+};
+
+// ========== STATE ==========
+
+let coins = 0;
+let myCollection = [];
+let achievementsUnlocked = new Set();
+
+let stats = {
+  packsOpened: { bronze: 0, silver: 0, gold: 0, total: 0 },
+  cardsCollected: 0,
+  cardsByRarity: {}
+};
+
+// ========== UTILS ==========
+
+function formatNumber(num) {
+  return num.toLocaleString();
+}
+
+function pickRandomByChance(arr) {
+  const rand = Math.random();
+  let cumulative = 0;
+  for (const item of arr) {
+    cumulative += item.chance;
+    if (rand < cumulative) return item;
+  }
+  return arr[arr.length - 1];
+}
+
+// ========== GAME LOGIC ==========
+
+// Get random rarity from pack rarities
+function getRandomRarity(packType) {
+  return pickRandomByChance(packs[packType].rarities).name;
+}
+
+// Get random card of given rarity
+function getRandomCard(rarity) {
+  const pool = cardsByRarity[rarity];
+  if (!pool || pool.length === 0) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// Get random coin reward
+function getRandomCoinReward() {
+  return pickRandomByChance(coinCards).coins;
+}
+
+// Update coins display
+function updateCoinsDisplay() {
+  document.getElementById("currencyDisplay").textContent = `Coins: ${formatNumber(coins)}`;
+}
+
+// Check and unlock achievements
+function checkAchievements() {
+  for (const achievement of achievements) {
+    if (!achievementsUnlocked.has(achievement.id) && achievement.condition(stats)) {
+      achievementsUnlocked.add(achievement.id);
+      coins += 1000; // Achievement reward
+      alert(`Achievement unlocked: ${achievement.name} (+1000 coins)`);
+    }
+  }
+  renderAchievements();
+  updateCoinsDisplay();
+}
+
+// Add card to collection
+function addCardToCollection(card, rarity) {
+  myCollection.push({ ...card, rarity });
+  stats.cardsCollected++;
+  stats.cardsByRarity[rarity] = (stats.cardsByRarity[rarity] || 0) + 1;
+  checkAchievements();
+}
+
+// Open a pack
+function openPack(packType) {
+  const pack = packs[packType];
+  if (!pack) return;
+
+  if (coins < pack.price) {
+    alert("Not enough coins!");
+    return;
+  }
+
+  coins -= pack.price;
+  updateCoinsDisplay();
+
+  const cardArea = document.getElementById("cardArea");
+  cardArea.innerHTML = "";
+
+  // Open 5 cards + 1 coin card
+  for (let i = 0; i < 5; i++) {
+    let rarity = getRandomRarity(packType);
+    let card = getRandomCard(rarity);
+    if (!card) {
+      rarity = "common";
+      card = getRandomCard("common");
+    }
+
+    addCardToCollection(card, rarity);
+
+    const cardDiv = createCardDiv(card, rarity);
+    cardArea.appendChild(cardDiv);
+  }
+
+  // Add coin card as a "card"
+  const coinReward = getRandomCoinReward();
+  coins += coinReward;
+  updateCoinsDisplay();
+
+  const coinCardDiv = document.createElement("div");
+  coinCardDiv.className = "card";
+  coinCardDiv.style.justifyContent = "center";
+  coinCardDiv.innerHTML = `<div style="font-weight:bold; font-size:22px; z-index:2;">+${formatNumber(coinReward)} Coins</div>`;
+  cardArea.appendChild(coinCardDiv);
+
+  // Update stats
+  stats.packsOpened[packType]++;
+  stats.packsOpened.total++;
+  checkAchievements();
+}
+
+// Create card DOM element for collection or pack display
+function createCardDiv(card, rarity, withSell = false, index = -1) {
+  const cardDiv = document.createElement("div");
+  cardDiv.className = "card";
+
+  const img = document.createElement("img");
+  img.src = card.image;
+  img.alt = card.name;
+  cardDiv.appendChild(img);
+
+  const label = document.createElement("div");
+  label.className = "rarity-label";
+  label.textContent = rarity.toUpperCase();
+  cardDiv.appendChild(label);
+
+  const nameDiv = document.createElement("div");
+  nameDiv.className = "card-name";
+  nameDiv.textContent = card.name;
+  cardDiv.appendChild(nameDiv);
+
+  if (withSell && sellValues[rarity]) {
+    const sellBtn = document.createElement("button");
+    sellBtn.className = "sell-btn";
+    sellBtn.textContent = `Sell for ${formatNumber(sellValues[rarity])} coins`;
+    sellBtn.onclick = () => sellCard(index);
+    cardDiv.appendChild(sellBtn);
+  }
+
+  return cardDiv;
+}
+
+// Render collection modal cards
+function renderCollection() {
+  const collectionArea = document.getElementById("collectionArea");
+  collectionArea.innerHTML = "";
+  myCollection.forEach((card, index) => {
+    const cardDiv = createCardDiv(card, card.rarity, true, index);
+    collectionArea.appendChild(cardDiv);
+  });
+  renderAchievements();
+}
+
+// Sell a card by index
+function sellCard(index) {
+  if (index < 0 || index >= myCollection.length) return;
+  const card = myCollection[index];
+  if (!sellValues[card.rarity]) {
+    alert("This card cannot be sold.");
+    return;
+  }
+  coins += sellValues[card.rarity];
+  updateCoinsDisplay();
+
+  // Remove card from collection
+  myCollection.splice(index, 1);
+  stats.cardsCollected--;
+  stats.cardsByRarity[card.rarity]--;
+  if (stats.cardsByRarity[card.rarity] < 0) stats.cardsByRarity[card.rarity] = 0;
+  renderCollection();
+}
+
+// Render achievements list
+function renderAchievements() {
+  const list = document.getElementById("achievementList");
+  list.innerHTML = "";
+  achievements.forEach(a => {
+    const div = document.createElement("div");
+    div.className = "achievement-item";
+    if (achievementsUnlocked.has(a.id)) div.classList.add("unlocked");
+    div.textContent = a.name + (achievementsUnlocked.has(a.id) ? " (Unlocked)" : "");
+    list.appendChild(div);
+  });
+}
+
+// Show odds modal for pack type
+function showOdds(packType) {
+  const pack = packs[packType];
+  if (!pack) return;
+
+  const oddsTitle = document.getElementById("oddsTitle");
+  const oddsContent = document.getElementById("oddsContent");
+
+  oddsTitle.textContent = `${packType.charAt(0).toUpperCase() + packType.slice(1)} Pack Odds`;
+  oddsContent.textContent = pack.rarities.map(r => `${r.name.toUpperCase().padEnd(12)} : ${(r.chance * 100).toFixed(2)}%`).join("\n");
+
+  document.getElementById("oddsModal").style.display = "flex";
+}
+
+// ========== EVENT LISTENERS ==========
+
+document.getElementById("bronzePackBtn").onclick = () => openPack("bronze");
+document.getElementById("silverPackBtn").onclick = () => openPack("silver");
+document.getElementById("goldPackBtn").onclick = () => openPack("gold");
+
+document.getElementById("openCollectionBtn").onclick = () => {
+  renderCollection();
+  document.getElementById("collectionModal").style.display = "flex";
+};
+
+document.getElementById("closeCollectionBtn").onclick = () => {
+  document.getElementById("collectionModal").style.display = "none";
+};
+
+document.getElementById("closeOddsBtn").onclick = () => {
+  document.getElementById("oddsModal").style.display = "none";
+};
+
+document.querySelectorAll(".info-icon").forEach(icon => {
+  icon.addEventListener("click", () => {
+    const packType = icon.getAttribute("data-pack");
+    showOdds(packType);
+  });
+});
+
+// ========== INITIAL SETUP ==========
+coins = 5000; // Start with some coins for testing
+updateCoinsDisplay();
+renderAchievements();
+</script>
+
+</body>
+</html>
